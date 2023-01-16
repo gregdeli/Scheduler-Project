@@ -146,6 +146,15 @@ int main(int argc,char **argv)
     
     fclose(file);
 
+    //populate queue
+
+    struct WorkQueue q;
+    init_queue(&q);
+    for (int i = 0; i < count; i++)
+    {
+        enqueue(&q, processes[i]);
+    }
+
 	/* call selected scheduling policy */
 
 	/* print information and statistics */
