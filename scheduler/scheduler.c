@@ -13,8 +13,8 @@
 
 
 /* definition and implementation of process descriptor and queue(s) */
-// struct pou antiprosopeuei ena process
 
+// struct pou antiprosopeuei ena process
 struct Work
 {
     int number; //o arithmos tou executable workN 
@@ -22,7 +22,7 @@ struct Work
     pid_t pid;
     double time; //elapsed time 
     double start_time;
-    char command[15]; //megethos tou string 15 epeidi kathe grammi enos input_file einai 15 charaktires
+    char command[15]; 
 };
 /* global variables and data structures */
 
@@ -82,10 +82,13 @@ int main(int argc,char **argv)
     char *token;
 
     int i = 0;
+    int n; //workn
     while (fgets(line, 50, file) != NULL)
     {
         token = strtok(line, "\t");
         strcpy(processes[i].command, token);
+        sscanf(token, "../work/work%d", &n); //diavazw ton arithmo tis diergasias
+        processes[i].number = n;
         token = strtok(NULL, "\t");
         processes[i].priority = atoi(token);
         i++;
@@ -97,6 +100,5 @@ int main(int argc,char **argv)
 
 	/* print information and statistics */
 
-	printf("Scheduler exits\n");
 	return 0;
 }
