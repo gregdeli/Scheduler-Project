@@ -29,6 +29,7 @@ int main(int argc,char **argv)
         printf("Invalid number of arguments.\nUsage: ./scheduler <algorithm> [quantum] <input_file>\n");
         return -1;
     }
+    // read input arguments
     char *algorithm = argv[1];
     char *input_file;
     if (argc == 3)
