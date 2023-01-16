@@ -8,10 +8,13 @@
 #include <time.h>
 #include <signal.h>
 #include <string.h>
+
 /* global definitions */
+
 
 /* definition and implementation of process descriptor and queue(s) */
 // struct pou antiprosopeuei ena process
+
 struct Work
 {
     int number; //o arithmos tou executable workN 
@@ -19,7 +22,7 @@ struct Work
     pid_t pid;
     double time; //elapsed time 
     double start_time;
-    char *command; 
+    char command[15]; //megethos tou string 15 epeidi kathe grammi enos input_file einai 15 charaktires
 };
 /* global variables and data structures */
 
@@ -57,31 +60,9 @@ int main(int argc,char **argv)
     }
 
 	/* read input file - populate queue */
-
-    int line_count = 0; //arithmos ton grammwn sto input_file
+    
+    int count = 0;
     char row;
-    char getname[5];
-
-    int priority;
-
-    FILE *file1 = fopen(input_file, "r");
-    if (file1 == NULL)
-    {
-        printf("Could not open file\n");
-        return -1;
-    }
-
-    // metrame ton arithmo twn grammwm tou input_file
-    for (row = getc(file1); row != EOF; row = getc(file1))
-        if (row == '\n') // Increment line_count if this character is newline
-            line_count++;
-
-    fclose(file1);
-
-    // dimiourgw pinaka apo structs typou Work
-    struct Work works[line_count];
-
-    // open the file
     FILE *file = fopen(input_file, "r");
     if (file == NULL)
     {
@@ -89,26 +70,28 @@ int main(int argc,char **argv)
         return -1;
     }
 
-    int n, p;
+    // metrame ton arithmo twn grammwn tou input_file
+    for (row = getc(file); row != EOF; row = getc(file))
+        if (row == '\n') // Increment count if this character is newline
+            count++;
+
+    rewind(file); // pigainoume ton file pointer stin arxi tou arxeiou
 
     char line[50];
-    FILE *fp = fopen(input_file, "r");
-    for (int i = 0; i < 7; i++)
-    {
-        fgets(line, sizeof(line), fp);
-        sscanf(line, "../work/work%d", &n);
-        sprintf(works[i].command[i], "../work/work%d", n);
-        works[i].number = n;
-    }
-    fclose(fp);
+    struct Work processes[count];
+    char *token;
 
-    // read the file
-    int j = 0;
-    while (fscanf(file1, "%s %d", works[j].command[j], &priority) != EOF)
+    int i = 0;
+    while (fgets(line, 50, file) != NULL)
     {
-        works[j].priority = priority;
-        j++;
+        token = strtok(line, "\t");
+        strcpy(processes[i].command, token);
+        token = strtok(NULL, "\t");
+        processes[i].priority = atoi(token);
+        i++;
     }
+    
+    fclose(file);
 
 	/* call selected scheduling policy */
 
