@@ -30,55 +30,6 @@ struct Work
 
 /* global variables and data structures */
 
-/*queue with array*/
-/*struct WorkQueue
-{
-    struct Work processes[MAX_QUEUE_SIZE];
-    int head;
-    int tail;
-    int size;
-};
-
-//initialize head, tail and size values
-void init_queue(struct WorkQueue *q)
-{
-    q->head = 0;
-    q->tail = -1;
-    q->size = 0;
-}
-
-void enqueue(struct WorkQueue *q, struct Work item)
-{
-    if(q->size == MAX_QUEUE_SIZE)
-    {
-        printf("Error: Queue is full\n");
-    }
-    else
-    {
-        //me to % MAX_QUEUE_SIZE otan kanw enqueue kai to 
-        //tail vriskotan stin teleutaia thesi tou pinaka anti na auksithei kata ena, midenizetai
-        q->tail = (q->tail + 1) % MAX_QUEUE_SIZE; 
-        q->processes[q->tail] = item;
-        q->size++;
-    }
-}
-
-struct Work dequeue(struct WorkQueue *q)
-{
-    if(q->size == 0)
-    {
-        printf("Error: Queue is empty\n");
-    }
-    else
-    {
-        struct Work process = q->processes[q->head];
-        q->head = (q->head + 1) % MAX_QUEUE_SIZE; 
-        q->size--;
-        return process;
-    }
-}
-*/
-
 //queue with doubly linked list 
 struct WorkQueue
 {
