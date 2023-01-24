@@ -104,15 +104,13 @@ struct Work* dequeue(struct WorkQueue *q) {
 
 /* implementation of the scheduling policies, etc. batch(), rr() etc. */
 
-int success[7] = {};
+//int success[7] = {}; //why??
 void FCFS(int process_count, struct WorkQueue q, struct Work works[])
 {
     for (int i = 0; i < process_count; i++)
     {
         struct Work *work_p = dequeue(&q);
         struct Work current_work = *work_p;
-        struct timeval start, end;
-        gettimeofday(&start, NULL);
         int pid = fork();
         if (pid == 0)
         {
@@ -130,38 +128,39 @@ void FCFS(int process_count, struct WorkQueue q, struct Work works[])
             gettimeofday(&end, NULL);
             works[i].pid = pid;
             works[i].time = (end.tv_sec - start.tv_sec) + (end.tv_usec - start.tv_usec) / 1000000.0;
-            success[i] = i;
+            //success[i] = i;
             
         }
     }
 }
 
-/*void round_robin(struct WorkQueue *q, int quantum)
+void round_robin(struct WorkQueue *q, int quantum, int process_count)
 {
     struct Work current_process;
-    double start_time, end_time;
-    for (int i = 0; i < q->size; i++)
+    while(q->head != NULL)
     {
-        current_process = dequeue(q);
-        start_time = clock();
-        current_process.pid = fork();
-        if (current_process.pid == 0)
+        struct Work *current_process = dequeue(q);
+        struct timeval start, end;
+        gettimeofday(&start, NULL);
+        current_process->pid = fork();
+        if (current_process->pid == 0)
         {
-            // child process
-            execl(current_process.command, current_process.command, NULL);
-            exit(1);
+            //child process
+            char *args[] = {current_process->command, NULL};
+            execvp(current_process->command, args);  
+            exit(0);
         }
         else
         {
-            // parent process
+            //parent process
             sleep(quantum);
-            kill(current_process.pid, SIGSTOP);
-            end_time = clock();
-            current_process.time = (end_time - start_time) / CLOCKS_PER_SEC;
+            kill(current_process->pid, SIGSTOP);
+            gettimeofday(&end, NULL);
+            current_process->time = (end.tv_sec - start.tv_sec) + (end.tv_usec - start.tv_usec) / 1000000.0;
             enqueue(q, current_process);
         }
     }
-}*/
+}
 
 
 int main(int argc,char **argv)
@@ -182,7 +181,7 @@ int main(int argc,char **argv)
     //an den uparxei quantum
     if (argc == 3)
     {
-        char *input_file = argv[2];
+        input_file = argv[2];
     }
     //an uparxei quantum
     int quantum = 0;
@@ -191,7 +190,6 @@ int main(int argc,char **argv)
 
         input_file = argv[3];
         quantum = atoi(argv[2]);
-		printf("Input agrs: %s %d %s\n", algorithm,quantum,input_file); //delete this
     }
 
 	/* read input file - populate queue */
@@ -231,21 +229,9 @@ int main(int argc,char **argv)
     
     fclose(file);
 
-    //populate queue
+    //initiate queue
     struct WorkQueue q;
     init_queue(&q);
-
-    for (int i = 0; i < count; i++)
-    {
-        enqueue(&q, &processes[i]);
-    }
-    //test print queue
-    //delete this
-    struct Work *current = q.head;
-    while (current != NULL) {
-        printf("Work%d\n", current->number);
-        current = current->next;
-    }
 
 	/* call selected scheduling policy */
 
@@ -272,15 +258,16 @@ int main(int argc,char **argv)
 
 	/* print information and statistics */
     
-    double workload = processes[success[0]].time;
-    // Print the structs
-    printf("Work: %d, Priority: %d, PID: %d, Elapsed Time: %.3lf, Workload Time: %.3lf\n", processes[success[0]].number, processes[success[0]].priority, processes[success[0]].pid, processes[success[0]].time, workload);
-    for (int j = 1; j < count; j++)
+    double workload = processes[0].time;
+    for (int j = 0; j < count; j++)
     {
-        workload = workload + (processes[success[j]].time);
-        printf("Work: %d, Priority: %d, PID: %d, Elapsed Time: %.3lf, Workload Time: %.3lf\n", processes[success[j]].number, processes[success[j]].priority, processes[success[j]].pid, processes[success[j]].time, workload);
+        printf("Work: %d, Priority: %d, PID: %d, Elapsed Time: %.3lf, Workload Time: %.3lf\n", 
+                processes[i].number, processes[i].priority, processes[i].pid, 
+                processes[i].time, workload);
+
+        workload = workload + (processes[i].time);
     }
-    printf("WORKLOAD TIME: %.3lf\n\n", workload);
+    printf("\nWORKLOAD TIME: %.3lf\n\n", workload);
 
 	return 0;
 }
