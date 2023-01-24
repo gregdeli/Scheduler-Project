@@ -2,9 +2,7 @@
 #include <math.h>
 #include <unistd.h>
 #include <stdlib.h>
-
-#define LOAD  1
-#define DELAY  1000
+#include <sys/time.h>
 
 double a = 1.1;
 
@@ -34,9 +32,18 @@ int main(int argc, char **argv)
 	int workload = LOAD;
 	int pid = getpid();
 
+	struct timeval start, end;
+	
 	printf("process %d begins\n", pid);
+	gettimeofday(&start, NULL);
+
 	delay(workload);
+
+	gettimeofday(&end, NULL);
 	printf("process %d ends\n", pid);
+	
+	double time = (end.tv_sec - start.tv_sec) + (end.tv_usec - start.tv_usec) / 1000000.0;
+	printf("Elapsed time: %.3lf\n\n", time);
 
 	return 0;
 }

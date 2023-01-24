@@ -30,7 +30,6 @@ int main(int argc, char **argv)
 {
 	int workload = LOAD;
 	int pid = getpid();
-
 	printf("process %d begins\n", pid);
 	delay(workload);
 	printf("process %d ends\n", pid);

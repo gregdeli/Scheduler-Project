@@ -87,30 +87,15 @@ struct Work* dequeue(struct WorkQueue *q) {
     return first_process;
 }
 
-//synartisi pou epistrefei to work struct ston opoio deixnei to head tou queue
-//whats the point of this???
-//den to xreiazomaste
-/*struct Work front(struct WorkQueue *q)
-{
-    if (q->head == NULL)
-    {
-        printf("The queue is empty\n");
-    }
-    return *(q->head);
-}*/
-  
-
 /* signal handler(s) */
 
 /* implementation of the scheduling policies, etc. batch(), rr() etc. */
 
-//int success[7] = {}; //why??
 void FCFS(int process_count, struct WorkQueue q, struct Work works[])
 {
     for (int i = 0; i < process_count; i++)
     {
         struct Work *first_work = dequeue(&q);
-        //struct Work current_work = *work_p;
         
         int pid = fork();
         if (pid == 0)
@@ -129,25 +114,28 @@ void FCFS(int process_count, struct WorkQueue q, struct Work works[])
             gettimeofday(&end, NULL);
             works[i].pid = pid;
             works[i].time = (end.tv_sec - start.tv_sec) + (end.tv_usec - start.tv_usec) / 1000000.0;
-            //success[i] = i;
-            
         }
     }
 }
 
 void RR(struct WorkQueue *q, int quantum)
 {
+    struct timespec sleep_time;
+    sleep_time.tv_sec = 0;
+    sleep_time.tv_nsec = quantum;
     struct Work current_process;
     while(q->head != NULL)
     {
         struct Work *current_process = dequeue(q);
         struct timeval start, end;
-        int status;
         gettimeofday(&start, NULL);
-        if(current_process->pid == -3){
+        int status;
+        if(current_process->pid == -3)
+        {
             current_process->pid = fork();
         }
-        else{
+        else
+        {
             kill(current_process->pid, SIGCONT);
         }
         if (current_process->pid == 0)
@@ -160,14 +148,29 @@ void RR(struct WorkQueue *q, int quantum)
         else
         {
             //parent process
-            sleep(quantum);
+            //sleep(quantum);
+            nanosleep(&sleep_time,NULL);
+            
             waitpid(current_process->pid, &status, 0);
             kill(current_process->pid, SIGSTOP);
-            gettimeofday(&end, NULL);
-            current_process->time = current_process->time + (end.tv_sec - start.tv_sec) + (end.tv_usec - start.tv_usec) / 1000000.0;
-            enqueue(q, current_process);
+            if(WIFEXITED(status))
+            {
+                 gettimeofday(&end, NULL);
+                 current_process->time = current_process->time + (end.tv_sec - start.tv_sec) + (end.tv_usec - start.tv_usec) / 1000000.0;
+            }
+            else
+            {
+                gettimeofday(&end, NULL);
+                current_process->time = current_process->time + (end.tv_sec - start.tv_sec) + (end.tv_usec - start.tv_usec) / 1000000.0;
+                enqueue(q, current_process);
+            }
+            
         }
     }
+}
+
+void PRIO(){
+    //algorithmos tou jj edw 
 }
 
 
@@ -223,7 +226,7 @@ int main(int argc,char **argv)
     //init work structs 
     for(int i=0; i<count; i++){
         processes[i].time = 0;
-        //processes[i].pid = -3; //arxikopoiw me -3 giati den pairnei pote tin timi -3 to pid 
+        processes[i].pid = -3;
     }
 
     char *token;
@@ -267,18 +270,34 @@ int main(int argc,char **argv)
             printf("Error: Quantum not specified for RR algorithm\n");
             return 1;
         }
+        for (int i = 0; i < count; i++)
+        {
+            enqueue(&q, &processes[i]);
+        }
         RR(&q, quantum);
+        printf("\n\n# scheduler %s %d %s\n\n", algorithm, quantum, input_file);
+    }
+
+    if (strcmp(algorithm, "PRIO") == 0)
+    {
+        if (quantum == 0)
+        {
+            printf("Error: Quantum not specified for RR algorithm\n");
+            return 1;
+        }
+        //klisi synartisis jj edw
+
+        printf("\n\n# scheduler %s %d %s\n\n", algorithm, quantum, input_file);
     }
 
 	/* print information and statistics */
     
     double workload = processes[0].time;
-    for (int j = 0; j < count; j++)
+    for (int i = 0; i < count; i++)
     {
-        printf("Work: %d\n",processes[i].number);
-        /*printf("Work: %d, Priority: %d, PID: %d, Elapsed Time: %.3lf, Workload Time: %.3lf\n", 
+        printf("Work: %d, Priority: %d, PID: %d, Elapsed Time: %.3lf, Workload Time: %.3lf\n", 
                 processes[i].number, processes[i].priority, processes[i].pid, 
-                processes[i].time, workload);*/
+                processes[i].time, workload);
 
         workload = workload + (processes[i].time);
     }
