@@ -22,7 +22,7 @@ struct Work
     int priority;
     pid_t pid;
     double time; //elapsed time 
-    double start_time;
+    //double start_time;
     char command[MAX_LEN_COMMAND]; 
     struct Work *next; //pointer gia to queue
     struct Work *prev;
@@ -86,11 +86,55 @@ struct Work* dequeue(struct WorkQueue *q) {
 
     return first_process;
 }
+
+//synartisi pou epistrefei to work struct ston opoio deixnei to head tou queue
+//whats the point of this???
+//den to xreiazomaste
+/*struct Work front(struct WorkQueue *q)
+{
+    if (q->head == NULL)
+    {
+        printf("The queue is empty\n");
+    }
+    return *(q->head);
+}*/
   
 
 /* signal handler(s) */
 
 /* implementation of the scheduling policies, etc. batch(), rr() etc. */
+
+int success[7] = {};
+void FCFS(int process_count, struct WorkQueue q, struct Work works[])
+{
+    for (int i = 0; i < process_count; i++)
+    {
+        struct Work *work_p = dequeue(&q);
+        struct Work current_work = *work_p;
+        struct timeval start, end;
+        gettimeofday(&start, NULL);
+        int pid = fork();
+        if (pid == 0)
+        {
+            // This is the child process
+            char *args[] = {current_work.command, NULL};
+            execvp(current_work.command, args);   
+            exit(0);
+        }
+        else if (pid > 0)
+        {
+            // This is the parent process
+            struct timeval start, end;
+            gettimeofday(&start, NULL);
+            waitpid(pid, NULL, 0);
+            gettimeofday(&end, NULL);
+            works[i].pid = pid;
+            works[i].time = (end.tv_sec - start.tv_sec) + (end.tv_usec - start.tv_usec) / 1000000.0;
+            success[i] = i;
+            
+        }
+    }
+}
 
 /*void round_robin(struct WorkQueue *q, int quantum)
 {
@@ -190,6 +234,7 @@ int main(int argc,char **argv)
     //populate queue
     struct WorkQueue q;
     init_queue(&q);
+
     for (int i = 0; i < count; i++)
     {
         enqueue(&q, &processes[i]);
@@ -204,7 +249,38 @@ int main(int argc,char **argv)
 
 	/* call selected scheduling policy */
 
+    if (strcmp(algorithm, "BATCH") == 0)
+    {
+        for (int i = 0; i < count; i++)
+        {
+            enqueue(&q, &processes[i]);
+        }
+
+        FCFS(count, q, processes);
+        printf("\n\n# scheduler %s %s\n\n", algorithm, input_file);
+    }
+
+    if (strcmp(algorithm, "RR") == 0)
+    {
+        if (quantum == 0)
+        {
+            printf("Error: Quantum not specified for RR algorithm\n");
+            return 1;
+        }
+        //scheduleRR(count, quantum, processes);
+    }
+
 	/* print information and statistics */
+    
+    double workload = processes[success[0]].time;
+    // Print the structs
+    printf("Work: %d, Priority: %d, PID: %d, Elapsed Time: %.3lf, Workload Time: %.3lf\n", processes[success[0]].number, processes[success[0]].priority, processes[success[0]].pid, processes[success[0]].time, workload);
+    for (int j = 1; j < count; j++)
+    {
+        workload = workload + (processes[success[j]].time);
+        printf("Work: %d, Priority: %d, PID: %d, Elapsed Time: %.3lf, Workload Time: %.3lf\n", processes[success[j]].number, processes[success[j]].priority, processes[success[j]].pid, processes[success[j]].time, workload);
+    }
+    printf("WORKLOAD TIME: %.3lf\n\n", workload);
 
 	return 0;
 }
