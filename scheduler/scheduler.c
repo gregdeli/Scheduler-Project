@@ -109,14 +109,15 @@ void FCFS(int process_count, struct WorkQueue q, struct Work works[])
 {
     for (int i = 0; i < process_count; i++)
     {
-        struct Work *work_p = dequeue(&q);
-        struct Work current_work = *work_p;
+        struct Work *first_work = dequeue(&q);
+        //struct Work current_work = *work_p;
+        
         int pid = fork();
         if (pid == 0)
         {
             // This is the child process
-            char *args[] = {current_work.command, NULL};
-            execvp(current_work.command, args);   
+            char *args[] = {first_work->command, NULL};
+            execvp(first_work->command, args);   
             exit(0);
         }
         else if (pid > 0)
@@ -134,15 +135,21 @@ void FCFS(int process_count, struct WorkQueue q, struct Work works[])
     }
 }
 
-void round_robin(struct WorkQueue *q, int quantum, int process_count)
+void RR(struct WorkQueue *q, int quantum)
 {
     struct Work current_process;
     while(q->head != NULL)
     {
         struct Work *current_process = dequeue(q);
         struct timeval start, end;
+        int status;
         gettimeofday(&start, NULL);
-        current_process->pid = fork();
+        if(current_process->pid == -3){
+            current_process->pid = fork();
+        }
+        else{
+            kill(current_process->pid, SIGCONT);
+        }
         if (current_process->pid == 0)
         {
             //child process
@@ -154,9 +161,10 @@ void round_robin(struct WorkQueue *q, int quantum, int process_count)
         {
             //parent process
             sleep(quantum);
+            waitpid(current_process->pid, &status, 0);
             kill(current_process->pid, SIGSTOP);
             gettimeofday(&end, NULL);
-            current_process->time = (end.tv_sec - start.tv_sec) + (end.tv_usec - start.tv_usec) / 1000000.0;
+            current_process->time = current_process->time + (end.tv_sec - start.tv_sec) + (end.tv_usec - start.tv_usec) / 1000000.0;
             enqueue(q, current_process);
         }
     }
@@ -212,10 +220,16 @@ int main(int argc,char **argv)
 
     char line[50];
     struct Work processes[count];
+    //init work structs 
+    for(int i=0; i<count; i++){
+        processes[i].time = 0;
+        //processes[i].pid = -3; //arxikopoiw me -3 giati den pairnei pote tin timi -3 to pid 
+    }
+
     char *token;
 
     int i = 0;
-    int n; //workn
+    int n; //apo to workn
     while (fgets(line, 50, file) != NULL)
     {
         token = strtok(line, "\t");
@@ -253,7 +267,7 @@ int main(int argc,char **argv)
             printf("Error: Quantum not specified for RR algorithm\n");
             return 1;
         }
-        //scheduleRR(count, quantum, processes);
+        RR(&q, quantum);
     }
 
 	/* print information and statistics */
@@ -261,9 +275,10 @@ int main(int argc,char **argv)
     double workload = processes[0].time;
     for (int j = 0; j < count; j++)
     {
-        printf("Work: %d, Priority: %d, PID: %d, Elapsed Time: %.3lf, Workload Time: %.3lf\n", 
+        printf("Work: %d\n",processes[i].number);
+        /*printf("Work: %d, Priority: %d, PID: %d, Elapsed Time: %.3lf, Workload Time: %.3lf\n", 
                 processes[i].number, processes[i].priority, processes[i].pid, 
-                processes[i].time, workload);
+                processes[i].time, workload);*/
 
         workload = workload + (processes[i].time);
     }
