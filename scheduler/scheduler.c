@@ -99,7 +99,6 @@ struct Work *dequeue(struct WorkQueue *q)
 }
 
 /* signal handler(s) */
-
 void catch_sigchld(int sig)
 {
     waitpid(current_process->pid, &current_process->status, WNOHANG);
@@ -110,7 +109,6 @@ void catch_sigchld(int sig)
         current_process->time = current_process->time + ((end.tv_sec - start.tv_sec) + (end.tv_usec - start.tv_usec) / 1000000.0);
         
     }
-    
 }
 
 /* implementation of the scheduling policies, etc. batch(), rr() etc. */
@@ -239,9 +237,7 @@ void RR(int quantum, struct WorkQueue *q)
         {
             // parent process
             int ret_val = nanosleep(&sleep_time, NULL); // sleep gia xrono iso me to quantum
-            if(current_process->exited && ret_val == -1){
-                gettimeofday(&end, NULL);
-                current_process->time = current_process->time + ((end.tv_sec - start.tv_sec) + (end.tv_usec - start.tv_usec) / 1000000.0);
+            if(current_process->exited) {
                 continue;
             }
             else{
