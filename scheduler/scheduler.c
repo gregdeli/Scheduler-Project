@@ -214,7 +214,6 @@ void RR(int quantum, struct WorkQueue *q)
 
     while (q->head != NULL)
     {
-        //int ret_val = 0;
         current_process = dequeue(q);
         gettimeofday(&start, NULL); //start timer
 
