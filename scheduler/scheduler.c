@@ -30,6 +30,7 @@ struct Work
     struct Work *prev;
     int status;
     bool exited;
+    int index; //gia tin ektypwsi me tin seira pou oloklirwnontai oi diergasies
 };
 
 /* global variables and data structures */
@@ -140,7 +141,7 @@ void FCFS(int process_count, struct WorkQueue q, struct Work works[])
     }
 }
 
-void SJF(int process_count, struct WorkQueue q, struct Work works[])
+void SJF(int process_count, struct WorkQueue q, struct Work works[],int success[])
 {
     struct Work temp[process_count];
     for (int i = 1; i < process_count; i++)
@@ -154,7 +155,7 @@ void SJF(int process_count, struct WorkQueue q, struct Work works[])
         temp[0].prev = works[i].prev;
         int j = i - 1;
 
-        while (temp[0].priority < works[j].priority && j >= 0)
+        while (temp[0].number < works[j].number && j >= 0)
         {
             works[j + 1].priority = works[j].priority;
             works[j + 1].pid = works[j].pid;
@@ -200,12 +201,14 @@ void SJF(int process_count, struct WorkQueue q, struct Work works[])
             gettimeofday(&end, NULL);
             works[i].pid = pid;
             works[i].time = (end.tv_sec - start.tv_sec) + (end.tv_usec - start.tv_usec) / 1000000.0;
+            success[i]=i;
         }
     }
 }
 
-void RR(int quantum, struct WorkQueue *q)
+void RR(int quantum, struct WorkQueue *q, int success[])
 {
+    int index = 0; 
     struct timespec sleep_time;
     sleep_time.tv_sec = quantum/1000;
     sleep_time.tv_nsec = 0;
@@ -237,14 +240,20 @@ void RR(int quantum, struct WorkQueue *q)
             // parent process
             int ret_val = nanosleep(&sleep_time, NULL); // sleep gia xrono iso me to quantum
             if(current_process->exited) {
+                //ksthe diergasia tis opoias i ektelesi prostithetai se mia oura 
+                //gia na kseroume tin seira me tin opoia termatistikan
+                //struct Work curr_proc_copy = *current_process;
+                //enqueue(finished_queue,&curr_proc_copy);
+                success[index] = current_process->index;
+                index++;
                 continue;
             }
             else{
                 kill(current_process->pid, SIGSTOP);
                 waitpid(current_process->pid, &current_process->status, WSTOPPED);
-                enqueue(q,current_process);
                 gettimeofday(&end, NULL);
                 current_process->time = current_process->time + ((end.tv_sec - start.tv_sec) + (end.tv_usec - start.tv_usec) / 1000000.0);
+                enqueue(q,current_process);
             }
             
         }
@@ -306,15 +315,6 @@ int main(int argc, char **argv)
     char line[50];
     struct Work processes[count];
 
-    // init work 
-    for (int i = 0; i < count; i++)
-    {
-        processes[i].time = 0;
-        processes[i].pid = -1;
-        processes[i].status = -1;
-        processes[i].exited = false;
-    }
-
     char *token;
 
     int i = 0;
@@ -327,6 +327,11 @@ int main(int argc, char **argv)
         processes[i].number = n;
         token = strtok(NULL, "\t");
         processes[i].priority = atoi(token);
+        processes[i].index = i;
+        processes[i].time = 0;
+        processes[i].pid = -1;
+        processes[i].status = -1;
+        processes[i].exited = false;
         i++;
     }
 
@@ -337,6 +342,8 @@ int main(int argc, char **argv)
     init_queue(&q);
 
     /* call selected scheduling policy */
+
+    int success[count];
 
     if (strcmp(algorithm, "BATCH") == 0)
     {
@@ -351,7 +358,7 @@ int main(int argc, char **argv)
     else if (strcmp(algorithm, "SJF") == 0)
     {
 
-        SJF(count, q, processes);
+        SJF(count, q, processes,success);
         printf("\n\n# scheduler %s %s\n\n", algorithm, input_file);
     }
     else if (strcmp(algorithm, "RR") == 0)
@@ -363,9 +370,9 @@ int main(int argc, char **argv)
         }
         for (int i = 0; i < count; i++)
         {
-            enqueue(&q, &processes[i]);
+           enqueue(&q, &processes[i]);
         }
-        RR(quantum, &q);
+        RR(quantum, &q, success);
         printf("\n\n# scheduler %s %d %s\n\n", algorithm, quantum, input_file);
     }
 
@@ -389,14 +396,28 @@ int main(int argc, char **argv)
     /* print information and statistics */
 
     double workload = 0;
-    for (int i = 0; i < count; i++)
+    if(strcmp(algorithm, "BATCH") == 0)
     {
-        workload = workload + (processes[i].time);
-        printf("Work: %d, Priority: %d, PID: %d, Elapsed Time: %.3lf, Workload Time: %.3lf\n",
-               processes[i].number, processes[i].priority, processes[i].pid,
-               processes[i].time, workload);
+        for (int i = 0; i < count; i++)
+        {
+            workload = workload + (processes[i].time);
+            printf("Work: %d, Priority: %d, PID: %d, Elapsed Time: %.3lf, Workload Time: %.3lf\n",
+                processes[i].number, processes[i].priority, processes[i].pid,
+                processes[i].time, workload);
+        }
+        printf("\nWORKLOAD TIME: %.3lf\n\n", workload);
     }
-    printf("\nWORKLOAD TIME: %.3lf\n\n", workload);
-
+    else
+    {
+        for (int i = 0; i < count; i++)
+        {
+            workload = workload + (processes[success[i]].time);
+            printf("Work: %d, Priority: %d, PID: %d, Elapsed Time: %.3lf, Workload Time: %.3lf\n",
+                processes[success[i]].number, processes[success[i]].priority, processes[success[i]].pid,
+                processes[success[i]].time, workload);
+        }
+        printf("\nWORKLOAD TIME: %.3lf\n\n", workload);
+    }
+    
     return 0;
 }
