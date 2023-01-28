@@ -100,6 +100,9 @@ struct Work *dequeue(struct WorkQueue *q)
 }
 
 /* signal handler(s) */
+
+//otan ena child process steilei shma SIGCHLD thelw na elegxw ean exei termatistei i ektelesi mou 
+//gia na thesw to pedio exited = true kai na aferethei i diergasia apo tin oura ektelesis
 void catch_sigchld(int sig)
 {
     waitpid(current_process->pid, &current_process->status, WNOHANG);
@@ -240,10 +243,6 @@ void RR(int quantum, struct WorkQueue *q, int success[])
             // parent process
             int ret_val = nanosleep(&sleep_time, NULL); // sleep gia xrono iso me to quantum
             if(current_process->exited) {
-                //ksthe diergasia tis opoias i ektelesi prostithetai se mia oura 
-                //gia na kseroume tin seira me tin opoia termatistikan
-                //struct Work curr_proc_copy = *current_process;
-                //enqueue(finished_queue,&curr_proc_copy);
                 success[index] = current_process->index;
                 index++;
                 continue;
@@ -251,7 +250,7 @@ void RR(int quantum, struct WorkQueue *q, int success[])
             else{
                 kill(current_process->pid, SIGSTOP);
                 waitpid(current_process->pid, &current_process->status, WSTOPPED);
-                gettimeofday(&end, NULL);
+                gettimeofday(&end, NULL); 
                 current_process->time = current_process->time + ((end.tv_sec - start.tv_sec) + (end.tv_usec - start.tv_usec) / 1000000.0);
                 enqueue(q,current_process);
             }
@@ -343,6 +342,8 @@ int main(int argc, char **argv)
 
     /* call selected scheduling policy */
 
+    //se auton ton pinaka apothikeuoume ta indexes twn processes apo ton pinaka processes[] me tin seira pou termatizontai
+    //etsi gnorizoume tin seira me tin opoia termatistikan oi diergasies
     int success[count];
 
     if (strcmp(algorithm, "BATCH") == 0)
