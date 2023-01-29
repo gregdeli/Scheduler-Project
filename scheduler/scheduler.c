@@ -209,9 +209,8 @@ void SJF(int process_count, struct WorkQueue q, struct Work works[],int success[
     }
 }
 
-void RR(int quantum, struct WorkQueue *q, int success[])
-{
-    int index = 0; 
+void RR(int quantum, struct WorkQueue *q, int success[],int index)
+{ 
     struct timespec sleep_time;
     sleep_time.tv_sec = quantum/1000;
     sleep_time.tv_nsec = 0;
@@ -264,20 +263,20 @@ void RR(int quantum, struct WorkQueue *q, int success[])
 
 void PRIO(int process_count, struct WorkQueue q, struct Work works[],int quantum,int success[])
 {
-    struct Work temp;
+    struct Work temp[process_count];
 
     for (int i = 1; i < process_count; i++)
     {
-        temp.priority=works[i].priority;
-        temp.pid=works[i].pid;
-        temp.time=works[i].time;
-        temp.number=works[i].number;
-        strcpy(temp.command,works[i].command);
-        temp.next=works[i].next;
-        temp.prev=works[i].prev;
+        temp[0].priority=works[i].priority;
+        temp[0].pid=works[i].pid;
+        temp[0].time=works[i].time;
+        temp[0].number=works[i].number;
+        strcpy(temp[0].command,works[i].command);
+        temp[0].next=works[i].next;
+        temp[0].prev=works[i].prev;
         int j=i-1;
 
-        while (temp.priority < works[j].priority && j >= 0)
+        while (temp[0].priority < works[j].priority && j >= 0)
         {
             works[j + 1].priority=works[j].priority;
             works[j + 1].pid=works[j].pid;
@@ -290,13 +289,13 @@ void PRIO(int process_count, struct WorkQueue q, struct Work works[],int quantum
             --j;
         }
 
-        works[j + 1].priority=temp.priority;
-        works[j + 1].pid=temp.pid;
-        works[j + 1].time=temp.time;
-        works[j + 1].number=temp.number;
-        strcpy(works[j + 1].command,temp.command);
-        works[j + 1].next=temp.next;
-        works[j + 1].prev=temp.prev;
+        works[j + 1].priority=temp[0].priority;
+        works[j + 1].pid=temp[0].pid;
+        works[j + 1].time=temp[0].time;
+        works[j + 1].number=temp[0].number;
+        strcpy(works[j + 1].command,temp[0].command);
+        works[j + 1].next=temp[0].next;
+        works[j + 1].prev=temp[0].prev;
     }
 
     for (int i=0; i<process_count; i++)
@@ -308,6 +307,9 @@ void PRIO(int process_count, struct WorkQueue q, struct Work works[],int quantum
     int start_of_same_priority=0;
     struct Work *prev_work=NULL;
     struct Work *first_work=NULL;
+
+    struct WorkQueue temp_q;
+    init_queue(&temp_q);
 
     first_work=dequeue(&q);
     for (int i=0; i<process_count; i++)
@@ -326,10 +328,21 @@ void PRIO(int process_count, struct WorkQueue q, struct Work works[],int quantum
         {
             if(found_same_priority=true)
             {
-                for(int k=start_of_same_priority; k<i; k++)
-                {
+                int temp_process_position=start_of_same_priority;
 
+                for(int x=0; x<i-start_of_same_priority+1; x++)
+                {
+                    temp[x]=works[temp_process_position];
+                    
+                    temp_process_position++;
                 }
+
+                for (int k=0; k<i-start_of_same_priority+1; k++)
+                {
+                    enqueue(&temp_q,&temp[k]);
+                }
+
+                RR(quantum,&temp_q,success,start_of_same_priority);
 
                 found_same_priority=false;
 
@@ -473,10 +486,10 @@ int main(int argc, char **argv)
            enqueue(&q, &processes[i]);
         }
         
-        RR(quantum, &q, success);
+        RR(quantum, &q, success, 0);
         printf("\n\n# scheduler %s %d %s\n\n", algorithm, quantum, input_file);
     }
-    else if (strcmp(algorithm, "PRIO")==0)
+    else if (strcmp(algorithm,"PRIO")==0)
     {
         if (quantum==0)
         {
@@ -484,7 +497,7 @@ int main(int argc, char **argv)
             return 1;
         }
 
-        // klisi synartisis jj edw
+        PRIO(count,q,processes,quantum,success);
 
         printf("\n\n# scheduler %s %d %s\n\n", algorithm, quantum, input_file);
     }
