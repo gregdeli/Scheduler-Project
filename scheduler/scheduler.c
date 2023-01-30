@@ -1,3 +1,8 @@
+//Γρηγόρης Δελημπαλταδάκης, ΑΜ: 1084647
+//Δαμιανός Διασάκος, ΑΜ: 1084632
+//Αλκιβιάδης Δασκαλάκης, ΑΜ: 1084673
+//Ιάσων Ράικος, ΑΜ: 1084552
+
 /* header files */
 #include <stdio.h>
 #include <stdlib.h>
@@ -24,6 +29,8 @@ struct Work
     int priority;
     pid_t pid;
     double time; // elapsed time
+    double workload_rr; // workload time
+    double workload_prio; // workload time
     struct timeval start_time, end_time; ////gia ne metrisw ton xrono ektelesis kathe diergasias
     char command[MAX_LEN_COMMAND];
     struct Work *next; // pointer gia to queue
@@ -112,6 +119,8 @@ void catch_sigchld(int sig)
         gettimeofday(&current_process->end_time, NULL);
         current_process->time = (current_process->end_time.tv_sec - current_process->start_time.tv_sec) + 
         (current_process->end_time.tv_usec - current_process->start_time.tv_usec) / 1000000.0;  
+        current_process->workload_rr = (current_process->end_time.tv_sec-start_rr.tv_sec)+(current_process->end_time.tv_usec-start_rr.tv_usec)/ 1000000.0;  
+        current_process->workload_prio = (current_process->end_time.tv_sec-start_prio.tv_sec)+(current_process->end_time.tv_usec-start_prio.tv_usec)/ 1000000.0;  
     }
 }
 
@@ -210,10 +219,9 @@ void SJF(int process_count, struct WorkQueue q, struct Work works[],int success[
     }
 }
 
-void RR(int quantum, struct WorkQueue *q, int success[],int index) // epistrefei to workload time 
+void RR(int quantum, struct WorkQueue *q, int success[],int index) 
 {
     gettimeofday(&start_rr, NULL); 
-
     struct timespec sleep_time;
     if(quantum>=1000)
     {
@@ -237,7 +245,6 @@ void RR(int quantum, struct WorkQueue *q, int success[],int index) // epistrefei
     while (q->head != NULL)
     {
         current_process = dequeue(q);
-
         if(WIFSTOPPED(current_process->status))
         {
             kill(current_process->pid, SIGCONT);
@@ -270,6 +277,7 @@ void RR(int quantum, struct WorkQueue *q, int success[],int index) // epistrefei
             {
                 success[index] = current_process->index;
                 index++;
+                continue;
             }
             else
             {
@@ -285,8 +293,6 @@ void RR(int quantum, struct WorkQueue *q, int success[],int index) // epistrefei
 
 void PRIO(int process_count, struct WorkQueue q, struct Work works[],int quantum,int success[])
 {
-    gettimeofday(&start_prio, NULL);
-
     struct Work temp[process_count];
 
     for (int i = 1; i < process_count; i++)
@@ -334,6 +340,8 @@ void PRIO(int process_count, struct WorkQueue q, struct Work works[],int quantum
 
     struct WorkQueue temp_q;
     init_queue(&temp_q);
+
+    gettimeofday(&start_prio, NULL);
 
     first_work=dequeue(&q);
     for (int i=0; i<process_count; i++)
@@ -575,16 +583,34 @@ int main(int argc, char **argv)
         }
         printf("\nWORKLOAD TIME: %.3lf\n\n", workload);
     }
-    else
+    else if(strcmp(algorithm, "RR") == 0) 
     {
         for (int i = 0; i < count; i++)
         {
-            //workload = workload + (processes[success[i]].time);
-            printf("Work: %d, Priority: %d, PID: %d, Elapsed Time: %.3lf\n",
+            
+            printf("Work: %d, Priority: %d, PID: %d, Elapsed Time: %.3lf, Workload Time: %.3lf\n",
                 processes[success[i]].number, processes[success[i]].priority, processes[success[i]].pid,
-                processes[success[i]].time);
+                processes[success[i]].time,processes[success[i]].workload_rr);
+
+            
         }
         printf("\nWORKLOAD TIME: %.3lf\n\n", workload_time);
+    }
+    else{
+        
+        for (int i = 0; i < count; i++)
+        {
+
+            printf("Work: %d, Priority: %d, PID: %d, Elapsed Time: %.3lf, Workload Time: %.3lf\n",
+                processes[success[i]].number, processes[success[i]].priority, processes[success[i]].pid,
+                processes[success[i]].time,processes[success[i]].workload_prio);
+        }
+
+            
+        
+        printf("\nWORKLOAD TIME: %.3lf\n\n", workload_time);
+
+
     }
     
     return 0;
