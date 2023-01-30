@@ -24,7 +24,7 @@ struct Work
     int priority;
     pid_t pid;
     double time; // elapsed time
-    // double start_time;
+    struct timeval start_time, end_time; ////gia ne metrisw ton xrono ektelesis kathe diergasias
     char command[MAX_LEN_COMMAND];
     struct Work *next; // pointer gia to queue
     struct Work *prev;
@@ -34,9 +34,10 @@ struct Work
 };
 
 /* global variables and data structures */
-
 struct Work *current_process; //global pointer se Work gia xrisi sto catch_sigchld()
-struct timeval start, end; //gia ne metrisw ton xrono ektelesis kathe diergasias
+struct timeval start_rr, end_rr; //gia ne metrisw workload time se RR kai PRIO
+struct timeval start_prio, end_prio; 
+
 
 // queue with doubly linked list
 struct WorkQueue
@@ -100,7 +101,7 @@ struct Work *dequeue(struct WorkQueue *q)
 
 /* signal handler(s) */
 
-//otan ena child process steilei shma SIGCHLD thelw na elegxw ean exei termatistei i ektelesi mou 
+//otan ena child process steilei shma SIGCHLD kai exei termatisei thelw na elegxw ean exei termatistei ontws i ektelesi tou
 //gia na thesw to pedio exited = true kai na aferethei i diergasia apo tin oura ektelesis
 void catch_sigchld(int sig)
 {
@@ -108,9 +109,9 @@ void catch_sigchld(int sig)
     if(WIFEXITED(current_process->status))
     {
         current_process->exited = true;
-        gettimeofday(&end, NULL);
-        current_process->time = current_process->time + ((end.tv_sec - start.tv_sec) + (end.tv_usec - start.tv_usec) / 1000000.0);
-        
+        gettimeofday(&current_process->end_time, NULL);
+        current_process->time = (current_process->end_time.tv_sec - current_process->start_time.tv_sec) + 
+        (current_process->end_time.tv_usec - current_process->start_time.tv_usec) / 1000000.0;  
     }
 }
 
@@ -209,18 +210,33 @@ void SJF(int process_count, struct WorkQueue q, struct Work works[],int success[
     }
 }
 
-void RR(int quantum, struct WorkQueue *q, int success[],int index)
-{ 
+void RR(int quantum, struct WorkQueue *q, int success[],int index) // epistrefei to workload time 
+{
+    gettimeofday(&start_rr, NULL); 
+
     struct timespec sleep_time;
-    sleep_time.tv_sec = quantum/1000;
-    sleep_time.tv_nsec = 0;
+    if(quantum>=1000)
+    {
+        sleep_time.tv_sec = quantum/1000;
+        sleep_time.tv_nsec = 0; 
+    }
+    else
+    {
+        sleep_time.tv_sec = 0;
+        sleep_time.tv_nsec = quantum * 1000000; //quantum ms = quantum * 10^6 ns
+    }
+    
+    //gia na pigainei sto catch_sigchld otan kanei mono exit() ena paidi
+    struct sigaction sa;
+    sa.sa_handler = catch_sigchld;
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = SA_NOCLDSTOP;
 
-    signal(SIGCHLD,catch_sigchld); //kanw register tin catch_sigchld function ws handler for the SIGCHLD signal
-
+    sigaction(SIGCHLD, &sa, NULL); //kanw register tin catch_sigchld function ws handler for the SIGCHLD signal
+    
     while (q->head != NULL)
     {
         current_process = dequeue(q);
-        gettimeofday(&start, NULL); //start timer
 
         if(WIFSTOPPED(current_process->status))
         {
@@ -229,6 +245,7 @@ void RR(int quantum, struct WorkQueue *q, int success[],int index)
         else if(current_process->pid == -1)
         {
             current_process->pid = fork();
+            gettimeofday(&current_process->start_time, NULL); 
         }
 
         if (current_process->pid == 0)
@@ -238,31 +255,38 @@ void RR(int quantum, struct WorkQueue *q, int success[],int index)
             execvp(current_process->command, args);
             exit(0);
         }
+        //an kanw dequeu process pou exei teleiwsei den prepei na ksana kanw sleep() 
+        else if(current_process->exited){
+            success[index] = current_process->index;
+            index++;
+            continue;
+        }
         else
         {
             // parent process
-            int ret_val = nanosleep(&sleep_time, NULL); // sleep gia xrono iso me to quantum
+            nanosleep(&sleep_time, NULL); // sleep gia xrono iso me to quantum
+
             if(current_process->exited) 
             {
                 success[index] = current_process->index;
                 index++;
-                continue;
             }
             else
             {
                 kill(current_process->pid, SIGSTOP);
                 waitpid(current_process->pid, &current_process->status, WSTOPPED);
-                gettimeofday(&end, NULL); 
-                current_process->time = current_process->time + ((end.tv_sec - start.tv_sec) + (end.tv_usec - start.tv_usec) / 1000000.0);
                 enqueue(q,current_process);
             }
             
         }
     }
+    gettimeofday(&end_rr, NULL);
 }
 
 void PRIO(int process_count, struct WorkQueue q, struct Work works[],int quantum,int success[])
 {
+    gettimeofday(&start_prio, NULL);
+
     struct Work temp[process_count];
 
     for (int i = 1; i < process_count; i++)
@@ -314,47 +338,72 @@ void PRIO(int process_count, struct WorkQueue q, struct Work works[],int quantum
     first_work=dequeue(&q);
     for (int i=0; i<process_count; i++)
     {
+        int pid=-1;
+        int temp_process_position=0;
+
         prev_work=first_work;
 
         first_work=dequeue(&q);
 
+        if(first_work==NULL && found_same_priority==false)
+        {
+            goto last_work_not_in_same_priority_queue;
+        }
+        else if(first_work==NULL && found_same_priority==true)
+        {
+            goto last_work_in_same_priority_queue;
+        }
+       
         if(first_work->priority==prev_work->priority)
         {
             found_same_priority=true;
-
+                
             continue;
         }
         else
         {
-            if(found_same_priority=true)
+            if(found_same_priority==true)
             {
-                int temp_process_position=start_of_same_priority;
+                last_work_in_same_priority_queue:
 
+                temp_process_position=start_of_same_priority;
+                    
                 for(int x=0; x<i-start_of_same_priority+1; x++)
                 {
                     temp[x]=works[temp_process_position];
-                    
+                        
                     temp_process_position++;
                 }
-
+                    
                 for (int k=0; k<i-start_of_same_priority+1; k++)
                 {
                     enqueue(&temp_q,&temp[k]);
                 }
-
+                    
                 RR(quantum,&temp_q,success,start_of_same_priority);
 
+                int process_position=start_of_same_priority;
+                    
+                for(int d=0; d<i-start_of_same_priority+1; d++)
+                {
+                    works[process_position]=temp[d];
+                        
+                    process_position++;
+                }
+                    
                 found_same_priority=false;
-
+                    
                 start_of_same_priority=i+1;
-
+                    
                 continue;
             }
-
+                
             start_of_same_priority=i;
         }
 
-        int pid=fork();
+        last_work_not_in_same_priority_queue:
+        
+        pid=fork();
         if (pid==0)
         {
             // This is the child process
@@ -374,6 +423,7 @@ void PRIO(int process_count, struct WorkQueue q, struct Work works[],int quantum
             success[i]=i;
         }
     }
+    gettimeofday(&end_prio, NULL);
 }
 
 int main(int argc, char **argv)
@@ -457,6 +507,8 @@ int main(int argc, char **argv)
     //se auton ton pinaka apothikeuoume ta indexes twn processes apo ton pinaka processes[] me tin seira pou termatizontai
     //etsi gnorizoume tin seira me tin opoia termatistikan oi diergasies
     int success[count];
+    
+    double workload_time; // gia metrisi workload time se RR kai PRIO
 
     if (strcmp(algorithm, "BATCH") == 0)
     {
@@ -487,18 +539,19 @@ int main(int argc, char **argv)
         }
         
         RR(quantum, &q, success, 0);
+        workload_time = (end_rr.tv_sec - start_rr.tv_sec) + (end_rr.tv_usec - start_rr.tv_usec) / 1000000.0;  
         printf("\n\n# scheduler %s %d %s\n\n", algorithm, quantum, input_file);
     }
     else if (strcmp(algorithm,"PRIO")==0)
     {
         if (quantum==0)
         {
-            printf("Error: Quantum not specified for RR algorithm\n");
+            printf("Error: Quantum not specified for PRIO algorithm\n");
             return 1;
         }
 
         PRIO(count,q,processes,quantum,success);
-
+        workload_time = (end_prio.tv_sec - start_prio.tv_sec) + (end_prio.tv_usec - start_prio.tv_usec) / 1000000.0;  
         printf("\n\n# scheduler %s %d %s\n\n", algorithm, quantum, input_file);
     }
     else
@@ -510,8 +563,9 @@ int main(int argc, char **argv)
     /* print information and statistics */
 
     double workload = 0;
-    if(strcmp(algorithm, "BATCH") == 0)
+    if(strcmp(algorithm, "BATCH") == 0 || strcmp(algorithm, "SJF") == 0)
     {
+        double workload = 0;
         for (int i = 0; i < count; i++)
         {
             workload = workload + (processes[i].time);
@@ -525,12 +579,12 @@ int main(int argc, char **argv)
     {
         for (int i = 0; i < count; i++)
         {
-            workload = workload + (processes[success[i]].time);
-            printf("Work: %d, Priority: %d, PID: %d, Elapsed Time: %.3lf, Workload Time: %.3lf\n",
+            //workload = workload + (processes[success[i]].time);
+            printf("Work: %d, Priority: %d, PID: %d, Elapsed Time: %.3lf\n",
                 processes[success[i]].number, processes[success[i]].priority, processes[success[i]].pid,
-                processes[success[i]].time, workload);
+                processes[success[i]].time);
         }
-        printf("\nWORKLOAD TIME: %.3lf\n\n", workload);
+        printf("\nWORKLOAD TIME: %.3lf\n\n", workload_time);
     }
     
     return 0;

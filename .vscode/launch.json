@@ -6,7 +6,7 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${fileDirname}/${fileBasenameNoExtension}",
-            "args": ["PRIO","500","mixed.txt"],
+            "args": ["RR","1000","reverse.txt"],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}/scheduler",
             "environment": [],
