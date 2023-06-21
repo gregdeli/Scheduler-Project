@@ -19,13 +19,15 @@ To run the program, use the following command:
 ```
 ./scheduler <algorithm> [quantum] <input_file>
 ```
+- algorithm : Specify the scheduling algorithm to use (BATCH, SJF, RR, PRIO).
+- [quantum]: Required only for RR and PRIO algorithms. Specify the quantum time in milliseconds.
+- input_file: Specify the input file containing the list of processes to schedule.
+  
 Alternatively you can use the run.sh file:
 ```
 ./run.sh
 ```
-- algorithm : Specify the scheduling algorithm to use (BATCH, SJF, RR, PRIO).
-- [quantum]: Required only for RR and PRIO algorithms. Specify the quantum time in milliseconds.
-- input_file: Specify the input file containing the list of processes to schedule.
+
 # Examples 
 Run RR algorithm with a quantum of 100 milliseconds:
 ```
